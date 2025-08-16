@@ -1,7 +1,7 @@
 import { task } from 'hardhat/config'
 import { Address } from 'viem'
 
-import { tokenDecimals } from '@/models'
+import { tokenDecimals } from '@/config/const'
 
 task('faucet', 'Mints tokens from the specified token contract')
 	.addParam('symbol', 'The token symbol (e.g. DAI, USDC, WBTC, LINK, WSTETH)')
@@ -39,8 +39,8 @@ task('faucet', 'Mints tokens from the specified token contract')
 				hash
 			})
 
-			console.log(`✅ Minted. tx hash: ${hash}`)
+			console.log(`✅ Minted token. tx hash: ${hash}`)
 		} catch (error) {
-			console.error('❌ Error minting tokens:', error)
+			console.error('❌ Error minting token:', error)
 		}
 	})

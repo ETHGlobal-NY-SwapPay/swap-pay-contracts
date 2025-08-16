@@ -8,7 +8,8 @@
 		"lint:fix": "eslint --fix",
 		"task:createPool": "hardhat create-pool",
 		"task:faucet": "hardhat faucet",
-		"task:mintTokens": "hardhat mint-tokens"
+		"task:mintTokens": "hardhat mint-tokens",
+		"task:createPyusdPools": "hardhat create-pyusd-pools"
 	},
 	"devDependencies": {
 		"@chainlink/contracts": "^1.4.0",
