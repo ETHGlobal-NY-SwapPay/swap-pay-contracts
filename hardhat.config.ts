@@ -5,6 +5,7 @@ import '@nomicfoundation/hardhat-ethers'
 import '@openzeppelin/hardhat-upgrades'
 import '@typechain/hardhat'
 import 'hardhat-deploy'
+import '@/task'
 
 import dotenv from 'dotenv'
 import { HardhatUserConfig } from 'hardhat/config'

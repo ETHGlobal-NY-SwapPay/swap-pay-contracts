@@ -5,7 +5,9 @@
 		"deploy": "hardhat deploy --network",
 		"format": "prettier --write .",
 		"lint": "eslint",
-		"lint:fix": "eslint --fix"
+		"lint:fix": "eslint --fix",
+		"task:faucet": "hardhat faucet",
+		"task:mintTokens": "hardhat mint-tokens"
 	},
 	"devDependencies": {
 		"@eslint/eslintrc": "^3.3.1",
