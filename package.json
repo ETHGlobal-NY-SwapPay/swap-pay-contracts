@@ -11,6 +11,7 @@
 		"task:mintTokens": "hardhat mint-tokens"
 	},
 	"devDependencies": {
+		"@chainlink/contracts": "^1.4.0",
 		"@eslint/eslintrc": "^3.3.1",
 		"@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
 		"@nomicfoundation/hardhat-ethers": "^3.1.0",
