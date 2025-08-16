@@ -12,6 +12,7 @@
 		"@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
 		"@typechain/ethers-v6": "^0.5.1",
 		"@typechain/hardhat": "^9.1.0",
+		"@types/minimatch": "^6.0.0",
 		"@types/node": "^24.3.0",
 		"chai-bigint": "^0.2.0",
 		"dotenv": "^17.2.1",
@@ -21,16 +22,17 @@
 		"eslint-plugin-simple-import-sort": "^12.1.1",
 		"eslint-plugin-unused-imports": "^4.1.4",
 		"forge-std": "github:foundry-rs/forge-std#v1.10.0",
-		"hardhat": "^3.0.0",
+		"hardhat": "^2.26.3",
 		"prettier": "^3.6.2",
 		"prettier-plugin-solidity": "^2.1.0",
 		"solhint": "^6.0.0",
 		"solhint-plugin-prettier": "^0.1.0",
 		"solidity-coverage": "^0.8.16",
+		"ts-node": "^10.9.2",
 		"tsconfig-paths": "^4.2.0",
 		"typescript": "~5.9.2",
 		"typescript-eslint": "^8.39.1",
 		"viem": "^2.33.3"
 	},
-	"type": "module"
+	"dependencies": {}
 }
