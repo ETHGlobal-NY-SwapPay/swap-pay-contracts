@@ -9,15 +9,19 @@ typechain
 typechain-types
 
 # Environment files
-.env*
+.env
 
 # Node modules
 node_modules
 
 # Lock files
-pnpm-lock.yaml
 package-lock.json
 yarn.lock
+pnpm-lock.yaml
 
 # Output or logs
+.openzeppelin
 *.log
+
+# VS Code
+.vscode
