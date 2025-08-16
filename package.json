@@ -1,33 +1,36 @@
 {
-  "name": "swap-pay-contracts",
-  "scripts": {
-    "compile": "hardhat compile"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
-    "@nomicfoundation/hardhat-ignition": "^3.0.0",
-    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
-    "@typechain/ethers-v6": "^0.5.1",
-    "@typechain/hardhat": "^9.1.0",
-    "@types/node": "^24.3.0",
-    "chai-bigint": "^0.2.0",
-    "dotenv": "^17.2.1",
-    "eslint": "^9.33.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.4",
-    "eslint-plugin-simple-import-sort": "^12.1.1",
-    "eslint-plugin-unused-imports": "^4.1.4",
-    "forge-std": "github:foundry-rs/forge-std#v1.10.0",
-    "hardhat": "^3.0.0",
-    "prettier": "^3.6.2",
-    "prettier-plugin-solidity": "^2.1.0",
-    "solhint": "^6.0.0",
-    "solhint-plugin-prettier": "^0.1.0",
-    "solidity-coverage": "^0.8.16",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "~5.9.2",
-    "typescript-eslint": "^8.39.1",
-    "viem": "^2.33.3"
-  },
-  "type": "module"
+	"name": "swap-pay-contracts",
+	"scripts": {
+		"compile": "hardhat compile",
+		"format": "prettier --write .",
+		"lint": "eslint",
+		"lint:fix": "eslint --fix"
+	},
+	"devDependencies": {
+		"@eslint/eslintrc": "^3.3.1",
+		"@nomicfoundation/hardhat-ignition": "^3.0.0",
+		"@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
+		"@typechain/ethers-v6": "^0.5.1",
+		"@typechain/hardhat": "^9.1.0",
+		"@types/node": "^24.3.0",
+		"chai-bigint": "^0.2.0",
+		"dotenv": "^17.2.1",
+		"eslint": "^9.33.0",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-prettier": "^5.5.4",
+		"eslint-plugin-simple-import-sort": "^12.1.1",
+		"eslint-plugin-unused-imports": "^4.1.4",
+		"forge-std": "github:foundry-rs/forge-std#v1.10.0",
+		"hardhat": "^3.0.0",
+		"prettier": "^3.6.2",
+		"prettier-plugin-solidity": "^2.1.0",
+		"solhint": "^6.0.0",
+		"solhint-plugin-prettier": "^0.1.0",
+		"solidity-coverage": "^0.8.16",
+		"tsconfig-paths": "^4.2.0",
+		"typescript": "~5.9.2",
+		"typescript-eslint": "^8.39.1",
+		"viem": "^2.33.3"
+	},
+	"type": "module"
 }
