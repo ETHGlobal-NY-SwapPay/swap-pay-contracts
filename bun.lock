@@ -3,6 +3,9 @@
   "workspaces": {
     "": {
       "name": "swap-pay-contracts",
+      "dependencies": {
+        "@types/minimatch": "^6.0.0",
+      },
       "devDependencies": {
         "@eslint/eslintrc": "^3.3.1",
         "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",

@@ -2,6 +2,7 @@
 	"compilerOptions": {
 		"target": "es2020",
 		"module": "commonjs",
+		"moduleResolution": "node",
 		"esModuleInterop": true,
 		"forceConsistentCasingInFileNames": true,
 		"strict": true,
@@ -11,7 +12,11 @@
 		"baseUrl": "./",
 		"paths": {
 			"@/*": ["./*"]
-		}
+		},
+
+		"types": ["node", "mocha", "chai"],
+
+		"typeRoots": ["./types", "./typechain-types", "./node_modules/@types"]
 	},
 
 	"include": [
@@ -21,8 +26,5 @@
 		"./test",
 		"./typechain-types/**/*"
 	],
-
-	"exclude": ["node_modules"],
-
-	"typeRoots": ["./types", "./typechain-types", "./node_modules/@types"]
+	"exclude": ["node_modules"]
 }
