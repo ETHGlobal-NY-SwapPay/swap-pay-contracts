@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {AggregatorV3Interface} from '@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 
+import {IFeeds} from './core/Interfaces/IFeeds.sol';
 import {Native} from './core/libraries/Native.sol';
 
 // Sepolia token addresses (referencia)
@@ -21,28 +22,7 @@ import {Native} from './core/libraries/Native.sol';
 // linkUsdFeed  = 0xc59E3633BAAC79493d908e63626716e204A45EdF
 // wstethUsdFeed= 0xaaabb530434B0EeAAc9A42E25dbC6A22D7bE218E
 
-contract Feeds is Native {
-	/// =========================
-	/// ======== Structs ========
-	/// =========================
-	struct Balances {
-		uint256 eth;
-		uint256 wbtc;
-		uint256 dai;
-		uint256 usdc;
-		uint256 link;
-		uint256 wsteth;
-	}
-
-	struct Prices {
-		int256 ethUsd;
-		int256 wbtcUsd;
-		int256 daiUsd;
-		int256 usdcUsd;
-		int256 linkUsd;
-		int256 wstethUsd;
-	}
-
+contract Feeds is IFeeds, Native {
 	/// =========================
 	/// === Storage Variables ===
 	/// =========================
@@ -173,7 +153,6 @@ contract Feeds is Native {
 		if (token == eth) return 18; // ETH nativo
 		if (token == address(wbtc)) return 8; // WBTC estándar
 		if (token == address(usdc)) return 6; // USDC
-		// DAI/LINK/wstETH comúnmente 18
 		if (token == address(dai)) return 18;
 		if (token == address(link)) return 18;
 		if (token == address(wsteth)) return 18;
@@ -183,9 +162,9 @@ contract Feeds is Native {
 	function _tokenToUsd(
 		address token,
 		uint256 amount
-	) internal view returns (uint256) {
+	) internal view virtual returns (uint256) {
 		// usa tus feeds: 1e8
 		// (ya lo tienes implementado en Feeds/FeedsRegistry)
-		return Feeds.tokenToUsd(token, amount);
+		return tokenToUsd(token, amount);
 	}
 }
