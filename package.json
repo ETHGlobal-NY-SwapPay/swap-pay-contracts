@@ -2,6 +2,7 @@
 	"name": "swap-pay-contracts",
 	"scripts": {
 		"compile": "hardhat compile",
+		"deploy": "hardhat deploy --network",
 		"format": "prettier --write .",
 		"lint": "eslint",
 		"lint:fix": "eslint --fix"
