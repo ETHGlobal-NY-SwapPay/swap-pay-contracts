@@ -47,7 +47,8 @@ const solcUserConfig = (version: string) => {
 			optimizer: {
 				enabled: true,
 				runs: 200
-			}
+			},
+			viaIR: true
 		}
 	}
 }

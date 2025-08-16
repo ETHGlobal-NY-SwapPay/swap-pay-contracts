@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import {AggregatorV3Interface} from '@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 
-import {IFeeds} from './core/Interfaces/IFeeds.sol';
+import {IFeeds} from './core/interfaces/IFeeds.sol';
 import {Native} from './core/libraries/Native.sol';
 
 // Sepolia token addresses (referencia)
@@ -13,6 +13,7 @@ import {Native} from './core/libraries/Native.sol';
 // usdc = IERC20(0x0045912A7Cf4ccEd07cB0197B1eB05eb5330cE04);
 // link = IERC20(0x12D50F27df72c759B950a125FdeACe37e3ef21d1);
 // wsteth = IERC20(0x3d2fBc87d4Bb4c0364a727bbFD3B97420B5BbDeB);
+// pyusd = IERC20(0xE448eAbd8420ED396020F8dDB09A4b6F7E6040D4);
 
 // Sepolia price feed addresses (Chainlink) (referencia)
 // ethUsdFeed   = 0x694AA1769357215DE4FAC081bf1f309aDC325306
@@ -21,6 +22,7 @@ import {Native} from './core/libraries/Native.sol';
 // usdcUsdFeed  = 0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E
 // linkUsdFeed  = 0xc59E3633BAAC79493d908e63626716e204A45EdF
 // wstethUsdFeed= 0xaaabb530434B0EeAAc9A42E25dbC6A22D7bE218E
+// pyusdUsdFeed = 0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E
 
 contract Feeds is IFeeds, Native {
 	/// =========================
@@ -32,6 +34,7 @@ contract Feeds is IFeeds, Native {
 	IERC20 internal immutable usdc;
 	IERC20 internal immutable link;
 	IERC20 internal immutable wsteth;
+	IERC20 internal immutable pyusd;
 
 	AggregatorV3Interface internal immutable ethUsdFeed;
 	AggregatorV3Interface internal immutable wbtcUsdFeed;
@@ -39,22 +42,25 @@ contract Feeds is IFeeds, Native {
 	AggregatorV3Interface internal immutable usdcUsdFeed;
 	AggregatorV3Interface internal immutable linkUsdFeed;
 	AggregatorV3Interface internal immutable wstethUsdFeed;
+	AggregatorV3Interface internal immutable pyusdUsdFeed;
 
 	/// =========================
 	/// ====== Constructor ======
 	/// =========================
 	constructor(
-		IERC20 _wbtc,
 		IERC20 _dai,
-		IERC20 _usdc,
 		IERC20 _link,
+		IERC20 _usdc,
+		IERC20 _wbtc,
 		IERC20 _wsteth,
-		AggregatorV3Interface _ethUsdFeed,
-		AggregatorV3Interface _wbtcUsdFeed,
+		IERC20 _pyusd,
 		AggregatorV3Interface _daiUsdFeed,
-		AggregatorV3Interface _usdcUsdFeed,
+		AggregatorV3Interface _ethUsdFeed,
 		AggregatorV3Interface _linkUsdFeed,
-		AggregatorV3Interface _wstethUsdFeed
+		AggregatorV3Interface _usdcUsdFeed,
+		AggregatorV3Interface _wbtcUsdFeed,
+		AggregatorV3Interface _wstethUsdFeed,
+		AggregatorV3Interface _pyusdUsdFeed
 	) {
 		eth = NATIVE;
 		wbtc = _wbtc;
@@ -62,6 +68,7 @@ contract Feeds is IFeeds, Native {
 		usdc = _usdc;
 		link = _link;
 		wsteth = _wsteth;
+		pyusd = _pyusd;
 
 		ethUsdFeed = _ethUsdFeed;
 		wbtcUsdFeed = _wbtcUsdFeed;
@@ -69,6 +76,7 @@ contract Feeds is IFeeds, Native {
 		usdcUsdFeed = _usdcUsdFeed;
 		linkUsdFeed = _linkUsdFeed;
 		wstethUsdFeed = _wstethUsdFeed;
+		pyusdUsdFeed = _pyusdUsdFeed;
 	}
 
 	/// =========================
@@ -83,7 +91,8 @@ contract Feeds is IFeeds, Native {
 			dai: dai.balanceOf(_account),
 			usdc: usdc.balanceOf(_account),
 			link: link.balanceOf(_account),
-			wsteth: wsteth.balanceOf(_account)
+			wsteth: wsteth.balanceOf(_account),
+			pyusd: pyusd.balanceOf(_account)
 		});
 	}
 
@@ -94,7 +103,8 @@ contract Feeds is IFeeds, Native {
 			daiUsd: _getLatestPrice(daiUsdFeed),
 			usdcUsd: _getLatestPrice(usdcUsdFeed),
 			linkUsd: _getLatestPrice(linkUsdFeed),
-			wstethUsd: _getLatestPrice(wstethUsdFeed)
+			wstethUsd: _getLatestPrice(wstethUsdFeed),
+			pyusdUsd: _getLatestPrice(pyusdUsdFeed)
 		});
 	}
 
@@ -145,6 +155,7 @@ contract Feeds is IFeeds, Native {
 		if (token == address(usdc)) return usdcUsdFeed;
 		if (token == address(link)) return linkUsdFeed;
 		if (token == address(wsteth)) return wstethUsdFeed;
+		if (token == address(pyusd)) return pyusdUsdFeed;
 		revert('feed not found');
 	}
 
@@ -156,6 +167,7 @@ contract Feeds is IFeeds, Native {
 		if (token == address(dai)) return 18;
 		if (token == address(link)) return 18;
 		if (token == address(wsteth)) return 18;
+		if (token == address(pyusd)) return 6; // PYUSD
 		revert('decimals unknown');
 	}
 

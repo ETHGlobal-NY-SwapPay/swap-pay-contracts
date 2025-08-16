@@ -11,7 +11,9 @@
 		"task:createPool": "hardhat create-pool",
 		"task:addLiquidity": "hardhat add-liquidity",
 		"task:createPyusdPools": "hardhat create-pyusd-pools",
-		"task:addLiquidityPyusdAll": "hardhat add-liquidity-pyusd-all"
+		"task:addLiquidityPyusdAll": "hardhat add-liquidity-pyusd-all",
+		"task:approveTokens": "hardhat approve-tokens",
+		"task:execute": "hardhat execute"
 	},
 	"devDependencies": {
 		"@chainlink/contracts": "^1.4.0",
@@ -33,6 +35,9 @@
 		"@safe-global/types-kit": "^3.0.0",
 		"@typechain/ethers-v6": "^0.5.1",
 		"@typechain/hardhat": "^9.1.0",
+		"@uniswap/universal-router": "^2.0.0",
+		"@uniswap/v2-core": "^1.0.1",
+		"@uniswap/v3-core": "^1.0.1",
 		"@uniswap/v4-core": "^1.0.2",
 		"@uniswap/v4-periphery": "^1.0.3",
 		"chai-bigint": "^0.2.0",

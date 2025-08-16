@@ -12,6 +12,7 @@ interface IFeeds {
 		uint256 usdc;
 		uint256 link;
 		uint256 wsteth;
+		uint256 pyusd;
 	}
 
 	struct Prices {
@@ -21,6 +22,7 @@ interface IFeeds {
 		int256 usdcUsd;
 		int256 linkUsd;
 		int256 wstethUsd;
+		int256 pyusdUsd;
 	}
 
 	/// =========================

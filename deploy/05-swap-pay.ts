@@ -1,8 +1,14 @@
 // deploy/02_deploy_feeds.ts
+import { Address } from 'abitype'
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 
-import { developmentChains, networkConfig } from '@/config/const'
+import {
+	developmentChains,
+	networkConfig,
+	POOL_MANAGER_ADDRESS,
+	POOL_TEST_SWAP_ADDRESS
+} from '@/config/const'
 import { verify } from '@/utils/verify'
 
 const addresses = {
@@ -24,10 +30,32 @@ const addresses = {
 	PYUSD_USD: '0xA2F78ab2355fe2f984D808B5CeE7FD0A93D5270E'
 }
 
-const deployFeeds: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
+const deploySwapPay: DeployFunction = async (
+	hre: HardhatRuntimeEnvironment
+) => {
 	const { deployments, getNamedAccounts, network } = hre
 	const { deploy, log } = deployments
 	const { deployer } = await getNamedAccounts()
+
+	const { address: daiAddress } = (await deployments.get('DAI')) as {
+		address: Address
+	}
+
+	const { address: linkAddress } = (await deployments.get('LINK')) as {
+		address: Address
+	}
+
+	const { address: usdcAddress } = (await deployments.get('USDC')) as {
+		address: Address
+	}
+
+	const { address: wbtcAddress } = (await deployments.get('WBTC')) as {
+		address: Address
+	}
+
+	const { address: wstethAddress } = (await deployments.get('WSTETH')) as {
+		address: Address
+	}
 
 	const args = [
 		addresses.DAI,
@@ -37,31 +65,33 @@ const deployFeeds: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 		addresses.WSTETH,
 		addresses.PYUSD,
 
-		addresses.ETH_USD,
 		addresses.DAI_USD,
+		addresses.ETH_USD,
 		addresses.LINK_USD,
 		addresses.USDC_USD,
 		addresses.WBTC_USD,
 		addresses.WSTETH_USD,
-		addresses.PYUSD_USD
+		addresses.PYUSD_USD,
+		POOL_MANAGER_ADDRESS,
+		POOL_TEST_SWAP_ADDRESS
 	]
 
 	log('----------------------------------------------------')
-	log('Deploying Feeds and waiting for confirmations...')
+	log('Deploying SwapPay and waiting for confirmations...')
 
-	const feeds = await deploy('Feeds', {
+	const swapPay = await deploy('SwapPay', {
 		from: deployer,
 		args,
 		log: true,
 		waitConfirmations: networkConfig[network.name].blockConfirmations || 1
 	})
 
-	log(`✅ Feeds deployed at ${feeds.address}`)
+	log(`✅ SwapPay deployed at ${swapPay.address}`)
 
 	if (!developmentChains.includes(network.name)) {
-		await verify(feeds.address, args)
+		await verify(swapPay.address, args)
 	}
 }
 
-export default deployFeeds
-deployFeeds.tags = ['deploy', 'feeds']
+export default deploySwapPay
+deploySwapPay.tags = ['deploy', 'swapPay']

@@ -36,6 +36,12 @@ const deployTokens: DeployFunction = async function (
 		waitConfirmations: networkConfig[network.name].blockConfirmations || 1
 	})
 
+	log(`LINK deployed at ${LINK.address}`)
+
+	if (!developmentChains.includes(network.name)) {
+		await verify(LINK.address, args)
+	}
+
 	const PYUSD = await deploy('PYUSD', {
 		from: deployer,
 		args: [],
