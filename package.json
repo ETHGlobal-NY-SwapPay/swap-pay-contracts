@@ -6,10 +6,12 @@
 		"format": "prettier --write .",
 		"lint": "eslint",
 		"lint:fix": "eslint --fix",
-		"task:createPool": "hardhat create-pool",
 		"task:faucet": "hardhat faucet",
 		"task:mintTokens": "hardhat mint-tokens",
-		"task:createPyusdPools": "hardhat create-pyusd-pools"
+		"task:createPool": "hardhat create-pool",
+		"task:addLiquidity": "hardhat add-liquidity",
+		"task:createPyusdPools": "hardhat create-pyusd-pools",
+		"task:addLiquidityPyusdAll": "hardhat add-liquidity-pyusd-all"
 	},
 	"devDependencies": {
 		"@chainlink/contracts": "^1.4.0",

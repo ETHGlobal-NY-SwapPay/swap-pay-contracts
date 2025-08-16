@@ -41,6 +41,13 @@ export const FEE = 3000
 export const TICKSPACING = 60
 export const HOOKS = zeroAddress
 
+export const LIQUIDITY: bigint = 1_000_000n
+export const TICK_LOWER: number = -887220
+export const TICK_UPPER: number = 887220
+export const AMOUNT_MAX_ERC20: bigint = (1n << 160n) - 1n
+export const PERMIT2_EXPIRATION: bigint = (1n << 48n) - 1n
+export const UINT128_MAX = (1n << 128n) - 1n
+
 export const Actions = {
 	INCREASE_LIQUIDITY: 0x00,
 	DECREASE_LIQUIDITY: 0x01,
