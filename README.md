@@ -1,228 +1,211 @@
-Esta es una versión más completa. Incluí secciones sobre la arquitectura técnica y la estructura del proyecto, que demuestran un entendimiento profundo y profesionalismo.
-
-Copia y pega esto en tu archivo README.md.
-
+README.md
 Markdown
 
-# SwapPay Contracts 💸
+# SwapPay: Atomic Multi-Token Payment Gateway Contracts
 
-![ETHGlobal NY](https://img.shields.io/badge/ETHGlobal-NY_2025-blue.svg) ![Ledger Ready](https://img.shields.io/badge/Ledger-Ready-brightgreen.svg) ![Hardhat](https://img.shields.io/badge/Hardhat-3.0-orange.svg) ![Viem](https://img.shields.io/badge/Viem-Ready-violet.svg)
+![ETHGlobal NY](https://img.shields.io/badge/ETHGlobal-NY_2025-blue.svg) ![Ledger Ready](https://img.shields.io/badge/Ledger-EIP--7730-brightgreen.svg) ![Hardhat](https://img.shields.io/badge/Hardhat-3.0-orange.svg) ![Viem](https://img.shields.io/badge/Viem-Ready-violet.svg)
 
-### Un proyecto para el bounty de Ledger en ETHGlobal New York 2025
+### A Ledger Bounty Submission for ETHGlobal New York 2025
 
-**SwapPay** es una pasarela de pagos descentralizada que permite a los usuarios comprar activos on-chain (como NFTs) utilizando múltiples tokens ERC20 en una única transacción atómica, segura y transparente gracias a la implementación del estándar **Clear Signing (ERC-7730)** de Ledger.
+## Abstract
 
-> **Enlaces Rápidos:**
-> * [Video de Demostración](ENLACE_A_TU_VIDEO)
-> * [Prueba la dApp en vivo](ENLACE_A_TU_DAPP_DESPLEGADA)
+This repository contains the Solidity smart contracts for **SwapPay**, a decentralized payment gateway designed to facilitate the purchase of on-chain assets (specifically ERC-721 tokens) using a basket of disparate ERC-20 tokens within a single, atomic transaction. The core innovation is the integration with Ledger hardware wallets via the **EIP-7730 (Clear Signing)** standard, which provides users with transaction transparency and mitigates blind signing vulnerabilities.
 
----
-
-## 🚀 El Problema
-
-El usuario promedio de DeFi tiene sus fondos distribuidos en varios tokens. Para comprar un activo con un precio fijado en USDC, se ven obligados a:
-1.  Realizar múltiples swaps (ETH -> USDC, DAI -> USDC).
-2.  Pagar altas comisiones de gas por cada transacción.
-3.  Firmar transacciones complejas ("blind signing"), lo que supone un grave riesgo de seguridad.
-
-## ✅ La Solución SwapPay
-
-SwapPay elimina esta fricción. Nuestra solución permite una compra en un solo clic, orquestando todos los swaps y la transferencia del activo en una única transacción atómica, mientras proporciona una claridad total al usuario a través de su dispositivo Ledger.
+> **Quick Links:**
+> * [Live dApp Deployment](DEMO_URL)
+> * [Video Walkthrough](VIDEO_URL)
 
 ---
 
-## 🛠️ Arquitectura Técnica
+## System Architecture
 
-El ecosistema de SwapPay se compone de varias partes que trabajan en conjunto:
+The system is architected around two primary on-chain components, orchestrated by a client-side dApp and leveraging Uniswap V3 for liquidity.
 
-* **Contratos Inteligentes (Este Repositorio):**
-    * `SwapPay.sol`: El contrato principal que contiene la lógica de negocio para los swaps (vía Uniswap V3) y la compra.
-    * `SwapPayNFT.sol`: Un contrato ERC721 estándar que representa el activo a la venta.
-* **Protocolos Externos:**
-    * **Uniswap V3:** Utilizado como la fuente de liquidez para realizar los swaps de tokens de forma eficiente.
-* **Frontend dApp (No en este repo):**
-    * Una interfaz construida con Next.js, React y Viem que permite a los usuarios interactuar con los contratos de forma intuitiva.
+* **`SwapPay.sol` (Core Logic Contract):** This contract serves as the primary entry point for users. It orchestrates the entire swap-and-purchase process. It holds the logic for pulling pre-approved user funds, executing swaps against a designated Uniswap V3 pool, validating the resulting balance, and initiating the NFT transfer.
+* **`SwapPayNFT.sol` (Asset Contract):** A standard OpenZeppelin ERC-721 contract representing the asset being sold. For operational security, ownership of the minted NFTs is transferred to the `SwapPay.sol` contract post-deployment, making it the sole entity capable of transferring the NFT upon successful payment.
+* **Uniswap V3 Router:** The `SwapPay` contract interfaces with a specified Uniswap V3 router to execute token swaps, converting the user's input tokens into a single, predefined payment token (e.g., USDC).
 
----
-
-## 🔬 Flujo Detallado de la Transacción
-
-1.  **Paso 1: Aprobación de Tokens (Acción de Usuario)**
-    * El usuario conecta su wallet y selecciona los tokens que desea gastar.
-    * El frontend solicita al usuario que apruebe el gasto de cada token para nuestro contrato `SwapPay.sol`.
-
-2.  **Paso 2: Inicio de Compra (Acción de Usuario)**
-    * El usuario hace clic en "Comprar". Esto construye la llamada a la función `swapAndBuyNFT()`.
-
-3.  **Paso 3: Firma Clara en Ledger (Experiencia de Usuario)**
-    * La dApp envía la transacción al dispositivo Ledger.
-    * Gracias a ERC-7730, la pantalla muestra un resumen legible de la operación, previniendo el "blind signing".
-
-    > #### Pantalla del Ledger:
-    > ```
-    > Review transaction
-    > Action: Buy SwapPay NFT
-    > Using Token [1]: 0.1 WETH
-    > Using Token [2]: 50.0 DAI
-    > You get: NFT #42
-    > ```
-
-4.  **Paso 4: Ejecución Atómica (Lógica del Contrato)**
-    * El contrato `SwapPay.sol` recibe la transacción firmada y ejecuta toda la lógica en orden: recoge los fondos, realiza los swaps, verifica el total, transfiere el NFT y devuelve el cambio. Todo o nada.
+The transactional flow is as follows:
+`User -> dApp (Viem) -> SwapPay.sol -> Uniswap V3 Router -> SwapPayNFT.sol`
 
 ---
 
-## 💻 Guía de Desarrollo Local (Paso a Paso)
+## Transactional Flow & Execution Path
 
-Sigue esta guía detallada para levantar el proyecto en tu máquina local.
+The end-to-end process is designed to be atomic from the user's perspective, though it requires a one-time approval phase.
 
-#### Requisitos Previos
-* [Node.js](https://nodejs.org/en/) (versión 18 o superior)
-* [Git](https://git-scm.com/)
+1.  **Approval Phase (User-side):** The user must first issue `approve()` transactions for each ERC-20 token they intend to use, granting spending permission to the `SwapPay.sol` contract address.
 
-#### 1. Clonar el Repositorio
-Abre tu terminal, navega a donde quieras guardar el proyecto y clónalo.
+2.  **Execution Phase (User-side):** The user initiates the purchase by calling the `swapAndBuyNFT(address[] memory _inputTokens, uint256[] memory _inputAmounts, uint256 _tokenId)` function on the `SwapPay.sol` contract.
+
+3.  **Clear Signing (Ledger Hardware):** The dApp passes the transaction payload along with the corresponding EIP-7730 JSON metadata to the Ledger device. The device firmware parses this metadata to render a human-readable summary of the function call and its parameters, ensuring the user is fully aware of the operation's scope before signing.
+
+4.  **Contract Execution Path (On-chain):** Upon execution, the `swapAndBuyNFT` function performs the following steps atomically:
+    a. Iteratively calls `transferFrom()` on each input token contract to pull funds from `msg.sender`.
+    b. Iteratively calls `ISwapRouter.exactInputSingle()` on the Uniswap V3 Router, swapping each input token for the designated `paymentToken`.
+    c. Aggregates the balance of `paymentToken` received.
+    d. Validates the aggregated balance against the NFT's price with a `require()` statement.
+    e. Calls `safeTransferFrom()` on the `SwapPayNFT` contract to transfer the asset to `msg.sender`.
+    f. Refunds any surplus `paymentToken` from the swap back to the user.
+
+---
+
+## Local Development Environment
+
+This project utilizes the Hardhat 3 Beta framework.
+
+#### Prerequisites
+* Node.js (v18 or higher)
+* Git
+
+#### 1. Clone & Install Dependencies
+Clone the repository and install the required npm packages.
 ```bash
 git clone [https://github.com/ETHGlobal-NY-SwapPay/swap-pay-contracts.git](https://github.com/ETHGlobal-NY-SwapPay/swap-pay-contracts.git)
 cd swap-pay-contracts
-2. Instalar Dependencias
-Este comando descargará todas las librerías necesarias (Hardhat, Viem, etc.) definidas en package.json.
-
-Bash
-
 npm install
-3. Configurar el Entorno
-Crea una copia del archivo de ejemplo .env.example para guardar tus claves de forma segura.
+2. Environment Configuration
+Create a .env file from the provided example. This file is gitignored for security.
 
 Bash
 
 cp .env.example .env
-Ahora, abre el nuevo archivo .env y rellena las variables:
+Populate the .env file with your specific endpoints and private keys:
 
-# Obtén esto de un proveedor como Alchemy o Infura
-SEPOLIA_RPC_URL="[https://sepolia.infura.io/v3/TU_API_KEY](https://sepolia.infura.io/v3/TU_API_KEY)"
-
-# Exporta la clave privada de una wallet de prueba (ej. MetaMask). ¡NUNCA uses una clave principal!
-SEPOLIA_PRIVATE_KEY="0xTU_CLAVE_PRIVADA"
-
-# Crea una cuenta en Etherscan para obtener una clave API gratuita
-ETHERSCAN_API_KEY="TU_CLAVE_DE_ETHERSCAN"
-4. Compilar los Contratos
-Verifica que todo esté correcto compilando los contratos.
+SEPOLIA_RPC_URL="<YOUR_ALCHEMY_OR_INFURA_RPC_URL>"
+SEPOLIA_PRIVATE_KEY="<YOUR_0x_PREFIXED_PRIVATE_KEY>"
+ETHERSCAN_API_KEY="<YOUR_ETHERSCAN_API_KEY>"
+3. Compile Contracts
+Compile the Solidity code and generate TypeChain artifacts.
 
 Bash
 
 npx hardhat compile
-5. Ejecutar Pruebas
-Antes de desplegar, asegúrate de que toda la lógica funciona correctamente ejecutando las pruebas.
+4. Execute Test Suite
+The project includes both Solidity (Foundry-style) and TypeScript (node:test) tests.
 
 Bash
 
+# Run the complete test suite
 npx hardhat test
-🚀 Despliegue en Sepolia
-Usamos Hardhat Ignition para un despliegue robusto y repetible.
 
-Verifica tu .env: Asegúrate de que el archivo .env esté completo y que la wallet asociada a tu SEPOLIA_PRIVATE_KEY tenga ETH de prueba de Sepolia.
+# Run only TypeScript integration tests
+npx hardhat test nodejs
+Deployment to Sepolia
+Deployment is managed via Hardhat Ignition for reliable, stateful deployments.
 
-Ejecuta el Comando de Despliegue:
-Este comando leerá tu script de despliegue y subirá los contratos a la red de Sepolia.
+Verify Configuration: Ensure your .env is correctly configured and the deploying account is funded with Sepolia ETH.
+
+Execute Ignition Module: Run the deployment script. The module path should correspond to your project's structure.
 
 Bash
 
 npx hardhat ignition deploy --network sepolia ignition/modules/SwapPay.ts
-Una vez finalizado, la terminal te mostrará las direcciones de los contratos desplegados.
+Upon successful execution, Ignition will log the deployed contract addresses to the console.
 
-📁 Estructura del Proyecto
+Project Structure
 .
-├── contracts/          # Código fuente de los contratos Solidity
+├── contracts/
 │   ├── core/
 │   │   ├── SwapPay.sol
 │   │   └── SwapPayNFT.sol
 │   └── interfaces/
-├── ignition/           # Scripts de despliegue de Hardhat Ignition
+├── ignition/
 │   └── modules/
 │       └── SwapPay.ts
-├── test/               # Pruebas unitarias y de integración
+├── test/
 │   ├── SwapPay.test.ts
 │   └── SwapPay.sol.test.ts
-├── hardhat.config.ts   # Archivo de configuración de Hardhat
-└── package.json        # Dependencias y scripts del proyecto
+├── hardhat.config.ts
+└── package.json
 
 ---
 
-## sección 2: Cómo Usar Git para Subir tu Código (`git push`)
+## **section 2: Technical Git Workflow Guide**
 
-Aquí tienes una guía paso a paso para guardar tus cambios en GitHub. Este es el flujo de trabajo que usarás una y otra vez.
+### Git Workflow & Commit Hygiene
 
-### El Flujo de Trabajo Básico: Add -> Commit -> Push
+This guide outlines the standard Git workflow for contributing to this repository. The objective is to maintain a clean, atomic, and well-documented commit history.
 
-Piensa en esto como un proceso de 3 pasos para guardar tu trabajo:
-1.  **Add (Añadir):** Eliges qué archivos modificados quieres guardar.
-2.  **Commit (Confirmar):** Creas un "punto de guardado" con los archivos que elegiste y un mensaje que describe los cambios.
-3.  **Push (Empujar):** Subes esos "puntos de guardado" a GitHub para que todos en tu equipo los vean.
+### The Staging-Commit-Push Cycle
 
-### Guía Práctica Paso a Paso
+The fundamental workflow involves moving changes from the working directory to the staging area (index), committing them to the local repository, and finally pushing them to the remote.
 
-Abre la terminal en la carpeta de tu proyecto.
-
-#### Paso 1: Revisa el Estado (`git status`)
-Antes de hacer nada, siempre es bueno ver qué ha cambiado. Este es tu comando de seguridad.
+#### Step 1: Inspect the Working Directory (`git status`)
+Before staging any changes, inspect the state of your working tree and staging area. This command is non-destructive and provides critical context.
 ```bash
 git status
-Te mostrará los archivos que has modificado en rojo (modified).
+The output will list untracked files, modified files not yet staged, and changes that are staged for the next commit.
 
-Te mostrará los archivos nuevos que no están en Git en rojo (untracked files).
+Step 2: Stage Changes (git add)
+Move changes from the working directory to the staging area. Only staged changes will be included in the next commit.
 
-Paso 2: Añade tus Cambios al "Área de Preparación" (git add)
-Ahora tienes que decirle a Git qué cambios exactos quieres guardar en tu próximo "punto de guardado".
-
-Para añadir TODOS los cambios y archivos nuevos (lo más común):
+To stage all modified and untracked files:
 
 Bash
 
 git add .
-(El . significa "todo en este directorio y subdirectorios").
-
-Para añadir solo un archivo específico:
+To stage a specific file:
 
 Bash
 
 git add contracts/core/SwapPay.sol
-Después de ejecutar git add, si vuelves a escribir git status, verás que los archivos han cambiado de rojo a verde. ¡Están listos para el siguiente paso!
-
-Paso 3: Crea un Punto de Guardado (git commit)
-Ahora que tus archivos están preparados, crea el punto de guardado con un mensaje descriptivo. El mensaje es muy importante para que tú y tu equipo sepan qué hiciste.
+For interactive, patch-level staging (advanced):
+This allows you to stage specific hunks of code within a file, which is useful for creating atomic commits.
 
 Bash
 
-git commit -m "feat: Implementa la lógica de swap en el contrato principal"
-Buenas prácticas para los mensajes:
+git add -p
+Step 3: Commit Staged Changes (git commit)
+Record a snapshot of the staging area into your local repository history. Commits should be atomic, representing a single logical change.
 
-Empieza con un tipo: feat: (nueva función), fix: (arreglo de bug), docs: (cambios en la documentación), style:, refactor:, test:.
+Commit messages must adhere to the Conventional Commits specification.
 
-Sé breve pero descriptivo.
+Bash
 
-Paso 4: Sube tus Cambios a GitHub (git push)
-El último paso es enviar todos tus "commits" (puntos de guardado) que tienes en tu máquina local al repositorio remoto en GitHub.
+git commit -m "feat: implement atomic swap logic in SwapPay contract"
+Common Commit Types:
+
+feat: A new feature.
+
+fix: A bug fix.
+
+docs: Documentation only changes.
+
+style: Changes that do not affect the meaning of the code (white-space, formatting, etc).
+
+refactor: A code change that neither fixes a bug nor adds a feature.
+
+test: Adding missing tests or correcting existing tests.
+
+chore: Changes to the build process or auxiliary tools.
+
+Step 4: Push Commits to Remote (git push)
+Synchronize your local repository's commit history with the remote repository on GitHub.
 
 Bash
 
 git push origin main
-origin: Es el nombre por defecto de tu repositorio remoto (el de GitHub).
+origin: The default alias for the remote repository URL.
 
-main: Es el nombre de la rama principal a la que estás subiendo los cambios. (A veces puede ser master).
+main: The remote branch you are pushing to.
 
-Resumen Rápido (Cheat Sheet)
+If you are pushing a new local branch for the first time, use the --set-upstream (or -u) flag: git push -u origin <your-feature-branch>.
+
+Quick Reference (TL;DR)
 Bash
 
-# 1. Revisa qué has cambiado
+# 1. Check state
 git status
 
-# 2. Añade todos los cambios para guardarlos
+# 2. Stage all changes
 git add .
 
-# 3. Crea un punto de guardado con un mensaje claro
-git commit -m "docs: Actualizo el README con la guía de Git"
+# 3. Commit staged changes with a conventional message
+git commit -m "refactor: optimize gas usage in swap function"
+
+# 4. Push to the remote's main branch
+git push origin main
 
 # 4. Sube los cambios a GitHub
 git push origin main
