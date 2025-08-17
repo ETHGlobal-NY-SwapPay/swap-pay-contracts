@@ -50,6 +50,12 @@ contract SwapPay is Feeds, Transfer {
 		address indexed target,
 		bytes callFunctionData
 	);
+	/// Cashback emitido cuando aplica (automático)
+	event CashbackSent(
+		address indexed payer,
+		uint256 usdExcess1e8,
+		uint256 pyusdAmount
+	);
 
 	/// =========================
 	/// === Storage Variables ===
@@ -128,6 +134,13 @@ contract SwapPay is Feeds, Transfer {
 	/// = External / Public Functions =
 	/// ===============================
 
+	/**
+	 * @param _tokens  canasta de tokens (sin PYUSD)
+	 * @param _amounts montos correspondientes
+	 * @param _target  receptor del pago o contrato a invocar
+	 * @param _callFunctionData  calldata para el _target (si vacío, es simple transfer)
+	 * @param _amount monto de PYUSD a pagar (decimales del token)
+	 */
 	function execute(
 		address[] calldata _tokens,
 		uint256[] calldata _amounts,
@@ -141,20 +154,18 @@ contract SwapPay is Feeds, Transfer {
 		if (_target == address(0)) revert ZERO_ADDRESS();
 		if (_amount == 0) revert INVALID_VALUE();
 
+		// 1) Recibir canasta y valorar en USD (1e8)
 		uint256 basketUsd = 0;
 		for (uint256 i; i < _tokens.length; ) {
 			address token = _tokens[i];
 			uint256 amount = _amounts[i];
 
 			if (!tokens[token]) revert TOKEN_NOT_SUPPORTED();
-
 			if (token == address(pyusd)) revert PAYMENT_NOT_PYUSD();
-
 			if (amount == 0) revert INVALID_VALUE();
 
 			if (ERC20(token).balanceOf(msg.sender) < amount)
 				revert INSUFFICIENT_BALANCE();
-
 			if (ERC20(token).allowance(msg.sender, address(this)) < amount)
 				revert INSUFFICIENT_ALLOWANCE();
 
@@ -167,26 +178,43 @@ contract SwapPay is Feeds, Transfer {
 			}
 		}
 
+		// 2) Calcular valor objetivo del pago en USD (1e8)
 		uint256 targetUsd = _tokenToUsd(address(pyusd), _amount); // 1e8
-
 		if (basketUsd < targetUsd) revert INSUFFICIENT_USD_VALUE();
 
-		if (ERC20(address(pyusd)).balanceOf(address(this)) < _amount)
+		// 3) Cashback automático si hay excedente
+		uint256 pyusdNeeded = _amount;
+		uint256 pyusdCashback = 0;
+		if (basketUsd > targetUsd) {
+			uint256 usdExcess1e8 = basketUsd - targetUsd;
+			pyusdCashback = _usd1e8ToPyusdAmount(usdExcess1e8);
+		}
+
+		// 4) Tesorería debe cubrir pago + cashback
+		uint256 totalPyusdOut = pyusdNeeded + pyusdCashback;
+		if (ERC20(address(pyusd)).balanceOf(address(this)) < totalPyusdOut)
 			revert INSUFFICIENT_TREASURY();
 
+		// 5) Pago principal (transfer o call con approve)
 		if (_callFunctionData.length == 0) {
-			ERC20(address(pyusd)).transfer(_target, _amount);
+			ERC20(address(pyusd)).transfer(_target, pyusdNeeded);
 		} else {
 			ERC20(address(pyusd)).approve(_target, 0);
-			ERC20(address(pyusd)).approve(_target, _amount);
+			ERC20(address(pyusd)).approve(_target, pyusdNeeded);
 			(bool ok, ) = _target.call(_callFunctionData);
 			if (!ok) revert INVALID_CALL_FUNCTION_DATA();
+		}
+
+		// 6) Enviar cashback al pagador (si aplica)
+		if (pyusdCashback > 0) {
+			ERC20(address(pyusd)).transfer(msg.sender, pyusdCashback);
+			emit CashbackSent(msg.sender, basketUsd - targetUsd, pyusdCashback);
 		}
 
 		emit PaymentExecuted(
 			msg.sender,
 			targetUsd,
-			_amount,
+			pyusdNeeded,
 			_target,
 			_callFunctionData
 		);
@@ -204,5 +232,24 @@ contract SwapPay is Feeds, Transfer {
 		uint256 amountToken
 	) internal view override returns (uint256 usd1e8) {
 		return Feeds._tokenToUsd(token, amountToken);
+	}
+
+	/// Convierte USD (1e8) a monto de PYUSD respetando decimales del token.
+	function _usd1e8ToPyusdAmount(
+		uint256 usd1e8
+	) internal view returns (uint256) {
+		uint8 decs;
+		// leer decimales del token PYUSD (fallback 6 si no está disponible)
+		try ERC20(address(pyusd)).decimals() returns (uint8 d) {
+			decs = d;
+		} catch {
+			decs = 6;
+		}
+		uint256 oneToken = 10 ** decs;
+
+		// Precio por 1 PYUSD en 1e8 USD
+		uint256 pricePerToken1e8 = _tokenToUsd(address(pyusd), oneToken);
+		// amountPyusd = ceil(usd1e8 * oneToken / pricePerToken1e8)
+		return _ceilDiv(usd1e8 * oneToken, pricePerToken1e8);
 	}
 }
