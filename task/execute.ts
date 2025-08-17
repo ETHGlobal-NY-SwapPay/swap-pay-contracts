@@ -5,9 +5,26 @@ import { encodeFunctionData, parseUnits } from 'viem'
 
 import { tokenDecimals } from '@/config/const'
 
+// ===== Helpers locales
+const BPS_DENOM = 10_000n
+const TOTAL_FEE_BPS = 0n // si agregas fee propio, súbelo aquí
+
+const pow10 = (n: number) => 10n ** BigInt(n)
+
+const ceilDiv = (a: bigint, b: bigint) => (a === 0n ? 0n : 1n + (a - 1n) / b)
+
+/** Convierte USD(1e8) -> amountToken en base a precio tokenUSD(1e8) */
+const usd1e8ToTokenAmount = (
+	usd1e8: bigint,
+	decs: number,
+	price1e8: bigint
+) => {
+	// amount = usd * 10^decs / price
+	return (usd1e8 * pow10(decs)) / price1e8
+}
+
 const IERC20_MIN_ABI = [
 	{
-		// approve(address,uint256)
 		name: 'approve',
 		type: 'function',
 		stateMutability: 'nonpayable',
@@ -18,7 +35,6 @@ const IERC20_MIN_ABI = [
 		outputs: [{ type: 'bool' }]
 	},
 	{
-		// allowance(address,address)
 		name: 'allowance',
 		type: 'function',
 		stateMutability: 'view',
@@ -30,290 +46,240 @@ const IERC20_MIN_ABI = [
 	}
 ] as const
 
-const BPS_DENOM = 10_000n
-const TOTAL_FEE_BPS = 4n // 3 bps swap + 1 bps hook
-
-function pow10(n: number) {
-	return 10n ** BigInt(n)
-}
-
-function ceilDiv(a: bigint, b: bigint) {
-	return a === 0n ? 0n : 1n + (a - 1n) / b
-}
-
-// usd (1e8) -> token amount (base units)
-function usd1e8ToTokenAmount(usd1e8: bigint, tokenDecs: number, px1e8: bigint) {
-	// amount = usd * 10^dec / px
-	return (usd1e8 * pow10(tokenDecs)) / px1e8
-}
-
 task(
 	'execute',
-	'Runs SwapPay.execute to buy a PixelCounterNFT paying in PYUSD (sends even if it reverts)'
-)
-	.addFlag(
-		'force',
-		'Send raw tx without simulation; useful to get a txHash for Tenderly even on revert'
-	)
-	.setAction(async ({ force }, hre) => {
-		const { viem, deployments, getNamedAccounts } = hre
-		const { deployer } = (await getNamedAccounts()) as { deployer: Address }
+	'Runs SwapPay.execute to buy a PixelCounterNFT paying in PYUSD (treasury payout)'
+).setAction(async (_, hre) => {
+	const { viem, deployments, getNamedAccounts } = hre
+	const { deployer } = (await getNamedAccounts()) as { deployer: Address }
 
-		const publicClient = await viem.getPublicClient()
-		const walletClient = await viem.getWalletClient(deployer)
+	const publicClient = await viem.getPublicClient()
+	const walletClient = await viem.getWalletClient(deployer)
 
-		// ==== Contracts & addresses
-		const { address: swapPayAddr } = (await deployments.get('SwapPay')) as {
-			address: Address
-		}
-		const { address: pixelAddr } = (await deployments.get(
-			'PixelCounterNFT'
-		)) as { address: Address }
-		const { address: pyusdAddr } = (await deployments.get('PYUSD')) as {
-			address: Address
-		}
-		const { address: daiAddr } = (await deployments.get('DAI')) as {
-			address: Address
-		}
-		const { address: usdcAddr } = (await deployments.get('USDC')) as {
-			address: Address
-		}
-		const { address: linkAddr } = (await deployments.get('LINK')) as {
-			address: Address
-		}
+	// ==== Contracts & addresses
+	const { address: swapPayAddr } = (await deployments.get('SwapPay')) as {
+		address: Address
+	}
+	const { address: pixelAddr } = (await deployments.get('PixelCounterNFT')) as {
+		address: Address
+	}
+	const { address: pyusdAddr } = (await deployments.get('PYUSD')) as {
+		address: Address
+	}
+	const { address: daiAddr } = (await deployments.get('DAI')) as {
+		address: Address
+	}
+	const { address: usdcAddr } = (await deployments.get('USDC')) as {
+		address: Address
+	}
+	const { address: linkAddr } = (await deployments.get('LINK')) as {
+		address: Address
+	}
 
-		const swapPay = await viem.getContractAt('SwapPay', swapPayAddr)
-		const pixel = await viem.getContractAt('PixelCounterNFT', pixelAddr)
+	const swapPay = await viem.getContractAt('SwapPay', swapPayAddr)
+	const pixel = await viem.getContractAt('PixelCounterNFT', pixelAddr)
 
-		// ==== 1) Leer precio del NFT
-		const price: bigint = await pixel.read.getPrice()
-		console.log('----------------------------------------------------')
-		console.log(`🧾 NFT price (raw): ${price.toString()}`)
+	// ==== 1) Leer precio del NFT (en PYUSD base units)
+	const price: bigint = await pixel.read.getPrice()
+	console.log('----------------------------------------------------')
+	console.log(`🧾 NFT price (raw): ${price.toString()}`)
 
-		// ==== 2) Asegurar que PYUSD esté soportado en Pixel y tokens en SwapPay
+	// ==== 2) Asegurar soporte de tokens (Pixel y SwapPay)
+	try {
+		const supported: boolean = await pixel.read.isTokenSupported([pyusdAddr])
+		if (!supported) {
+			const h = await pixel.write.addToToken([pyusdAddr], {
+				account: deployer
+			})
+			await publicClient.waitForTransactionReceipt({ hash: h })
+			console.log(`✅ PixelCounterNFT.addToToken(PYUSD) tx: ${h}`)
+		} else {
+			console.log('ℹ️ PixelCounterNFT ya soporta PYUSD')
+		}
+	} catch {
+		console.log(
+			'ℹ️ Saltando addToToken en Pixel (prob. ya soportado/owner distinto).'
+		)
+	}
+
+	for (const t of [pyusdAddr, daiAddr, usdcAddr, linkAddr]) {
 		try {
-			const supported: boolean = await pixel.read.isTokenSupported([pyusdAddr])
-			if (!supported) {
-				const h = await pixel.write.addToToken([pyusdAddr], {
-					account: deployer
-				})
+			const ok: boolean = await swapPay.read.isTokenSupported([t])
+			if (!ok) {
+				const h = await swapPay.write.addToToken([t], { account: deployer })
 				await publicClient.waitForTransactionReceipt({ hash: h })
-				console.log(`✅ PixelCounterNFT.addToToken(PYUSD) tx: ${h}`)
-			} else {
-				console.log('ℹ️ PixelCounterNFT ya soporta PYUSD')
+				console.log(`✅ SwapPay.addToToken(${t}) tx: ${h}`)
 			}
 		} catch {
-			console.log(
-				'ℹ️ No fue necesario añadir PYUSD en PixelCounterNFT (prob. ya soportado / owner distinto).'
-			)
+			/* ya soportado o función restringida */
 		}
+	}
 
-		for (const t of [pyusdAddr, daiAddr, usdcAddr, linkAddr]) {
-			try {
-				const ok: boolean = await swapPay.read.isTokenSupported([t])
-				if (!ok) {
-					const h = await swapPay.write.addToToken([t], { account: deployer })
-					await publicClient.waitForTransactionReceipt({ hash: h })
-					console.log(`✅ SwapPay.addToToken(${t}) tx: ${h}`)
-				}
-			} catch {
-				/* ya soportado */
-			}
+	// ==== 3) Objetivo USD y gross con fees (+1% buffer)
+	// swapPay expone tokenToUsd(token, amount) via Feeds
+	const targetUsd1e8: bigint = await (swapPay.read as any).tokenToUsd([
+		pyusdAddr,
+		price
+	])
+	const grossUsdNeeded1e8 = ceilDiv(
+		targetUsd1e8 * BPS_DENOM,
+		BPS_DENOM - TOTAL_FEE_BPS
+	)
+	const grossWithBuffer1e8 = (grossUsdNeeded1e8 * 101n) / 100n
+
+	console.log(`💵 targetUsd (1e8): ${targetUsd1e8}`)
+	console.log(`💵 grossNeeded+fee (1e8): ${grossUsdNeeded1e8}`)
+	console.log(`💵 grossWithBuffer (1e8): ${grossWithBuffer1e8}`)
+
+	// ==== 4) Canasta: DAI, USDC, LINK (partes iguales; residuo al último)
+	const basket: { addr: Address; symbol: string; decs: number }[] = [
+		{ addr: daiAddr, symbol: 'DAI', decs: tokenDecimals.DAI },
+		{ addr: usdcAddr, symbol: 'USDC', decs: tokenDecimals.USDC },
+		{ addr: linkAddr, symbol: 'LINK', decs: tokenDecimals.LINK }
+	]
+	const N = BigInt(basket.length)
+	const shareUsd1e8 = grossWithBuffer1e8 / N
+
+	// Precios usando los feeds del propio SwapPay (consistentes on-chain)
+	const pxs1e8: bigint[] = []
+	for (const b of basket) {
+		const px = await (swapPay.read as any).tokenToUsd([b.addr, pow10(b.decs)])
+		pxs1e8.push(px)
+	}
+
+	const inTokens: Address[] = []
+	const inAmounts: bigint[] = []
+	let accUsd1e8 = 0n
+
+	for (let i = 0; i < basket.length; i++) {
+		const b = basket[i]
+		let amt: bigint
+		if (i < basket.length - 1) {
+			amt = usd1e8ToTokenAmount(shareUsd1e8, b.decs, pxs1e8[i])
+			if (amt === 0n) amt = 1n
+			accUsd1e8 += (amt * pxs1e8[i]) / pow10(b.decs)
+		} else {
+			const residUsd1e8 =
+				grossWithBuffer1e8 > accUsd1e8 ? grossWithBuffer1e8 - accUsd1e8 : 0n
+			amt =
+				residUsd1e8 === 0n
+					? 1n
+					: usd1e8ToTokenAmount(residUsd1e8, b.decs, pxs1e8[i])
+			if (amt === 0n) amt = 1n
 		}
+		inTokens.push(b.addr)
+		inAmounts.push(amt)
+	}
 
-		// ==== 3) Objetivo USD y gross con fees (+1% buffer)
-		const targetUsd1e8: bigint = await swapPay.read.tokenToUsd([
-			pyusdAddr,
-			price
-		])
-		const grossUsdNeeded1e8 = ceilDiv(
-			targetUsd1e8 * BPS_DENOM,
-			BPS_DENOM - TOTAL_FEE_BPS
-		)
-		const grossWithBuffer1e8 = (grossUsdNeeded1e8 * 101n) / 100n
+	console.log('🧺 Basket estimada:')
+	basket.forEach((b, i) => {
+		console.log(`   - ${b.symbol}: amount=${inAmounts[i].toString()}`)
+	})
 
-		console.log(`💵 targetUsd (1e8): ${targetUsd1e8}`)
-		console.log(`💵 grossNeeded+fee (1e8): ${grossUsdNeeded1e8}`)
-		console.log(`💵 grossWithBuffer (1e8): ${grossWithBuffer1e8}`)
-
-		// ==== 4) Canasta: DAI, USDC, LINK (reparte en partes iguales, ajusta residuo en el último)
-		const basket: { addr: Address; symbol: string; decs: number }[] = [
-			{ addr: daiAddr, symbol: 'DAI', decs: tokenDecimals.DAI },
-			{ addr: usdcAddr, symbol: 'USDC', decs: tokenDecimals.USDC },
-			{ addr: linkAddr, symbol: 'LINK', decs: tokenDecimals.LINK }
-		]
-		const N = BigInt(basket.length)
-		const shareUsd1e8 = grossWithBuffer1e8 / N
-
-		// Precios por token usando los mismos feeds de SwapPay (valor de 10^decs en USD 1e8)
-		const pxs1e8: bigint[] = []
-		for (const b of basket) {
-			const px = await swapPay.read.tokenToUsd([b.addr, pow10(b.decs)])
-			pxs1e8.push(px)
-		}
-
-		const inTokens: Address[] = []
-		const inAmounts: bigint[] = []
-		let accUsd1e8 = 0n
-
-		for (let i = 0; i < basket.length; i++) {
-			const b = basket[i]
-			let amt: bigint
-			if (i < basket.length - 1) {
-				amt = usd1e8ToTokenAmount(shareUsd1e8, b.decs, pxs1e8[i])
-				if (amt === 0n) amt = 1n
-				accUsd1e8 += (amt * pxs1e8[i]) / pow10(b.decs)
-			} else {
-				const residUsd1e8 =
-					grossWithBuffer1e8 > accUsd1e8 ? grossWithBuffer1e8 - accUsd1e8 : 0n
-				amt =
-					residUsd1e8 === 0n
-						? 1n
-						: usd1e8ToTokenAmount(residUsd1e8, b.decs, pxs1e8[i])
-				if (amt === 0n) amt = 1n
-			}
-			inTokens.push(b.addr)
-			inAmounts.push(amt)
-		}
-
-		console.log('🧺 Basket estimada:')
-		basket.forEach((b, i) => {
-			console.log(`   - ${b.symbol}: amount=${inAmounts[i].toString()}`)
+	// ==== 5) Approvals hacia SwapPay (para transferFrom de la canasta)
+	for (let i = 0; i < inTokens.length; i++) {
+		const tokenAddr = inTokens[i]
+		const allowance: bigint = await publicClient.readContract({
+			address: tokenAddr,
+			abi: IERC20_MIN_ABI,
+			functionName: 'allowance',
+			args: [deployer, swapPayAddr]
 		})
 
-		// ==== 5) Approvals hacia SwapPay usando ABI genérico (sin artifacts)
-		for (let i = 0; i < basket.length; i++) {
-			const tokenAddr = basket[i].addr
-
-			const allowance: bigint = await publicClient.readContract({
+		if (allowance < inAmounts[i]) {
+			const h = await walletClient.writeContract({
 				address: tokenAddr,
 				abi: IERC20_MIN_ABI,
-				functionName: 'allowance',
-				args: [deployer, swapPayAddr]
+				functionName: 'approve',
+				args: [swapPayAddr, inAmounts[i]],
+				account: deployer
 			})
-
-			if (allowance < inAmounts[i]) {
-				const h = await walletClient.writeContract({
-					address: tokenAddr,
-					abi: IERC20_MIN_ABI,
-					functionName: 'approve',
-					args: [swapPayAddr, inAmounts[i]],
-					account: deployer
-				})
-				await publicClient.waitForTransactionReceipt({ hash: h })
-				console.log(
-					`✅ approve ${tokenAddr} → SwapPay por ${inAmounts[i].toString()} (tx: ${h})`
-				)
-			}
+			await publicClient.waitForTransactionReceipt({ hash: h })
+			console.log(
+				`✅ approve ${tokenAddr} → SwapPay por ${inAmounts[i].toString()} (tx: ${h})`
+			)
 		}
+	}
 
-		// ==== 6) Calldata buyNFT(_to=deployer, _token=PYUSD)
-		const buyCalldata = encodeFunctionData({
-			abi: pixel.abi,
-			functionName: 'buyNFT',
-			args: [deployer, pyusdAddr]
+	// ==== 6) Calldata buyNFT(_to=deployer, _token=PYUSD)
+	const buyCalldata = encodeFunctionData({
+		abi: pixel.abi,
+		functionName: 'buyNFT',
+		args: [deployer, pyusdAddr]
+	})
+
+	// ==== 7) Construir args de execute (firma nueva con 6 params)
+	const amountPayment = price // PYUSD exacto a pagar desde tesorería
+	const minOutPaymentToken = 0n // ignorado por el contrato actual
+
+	const executeArgs = [
+		inTokens, // address[] _tokens
+		inAmounts, // uint256[] _amounts
+		pixelAddr, // address _target
+		buyCalldata as Hex, // bytes _callFunctionData
+		amountPayment, // uint256 _amount (en PYUSD)
+		minOutPaymentToken // uint256 _minOutPaymentToken (ignorado)
+	] as const
+
+	// ==== 8) Ejecutar SwapPay
+	const executeCalldata = encodeFunctionData({
+		abi: swapPay.abi,
+		functionName: 'execute',
+		args: executeArgs
+	})
+
+	const sendRaw = async (tag: string) => {
+		const fee = await publicClient.getFeeHistory({
+			blockCount: 1,
+			rewardPercentiles: [25]
 		})
+		const base = fee.baseFeePerGas?.[0] ?? parseUnits('1', 9)
+		const tip = fee.reward?.[0]?.[0] ?? parseUnits('1', 9)
+		const maxFeePerGas = base + tip
+		const maxPriorityFeePerGas = tip
 
-		// ==== 7) Ejecutar SwapPay
-		const amountPayment = price
-		// ✅ Para evitar revert por slippage o redondeos en el swap, dejamos minOut en 0
-		const minOutPaymentToken = 0n
+		console.log(`⚡ Enviando RAW TX (${tag}) sin simulación...`)
+		const txHash = await walletClient.sendTransaction({
+			account: deployer,
+			to: swapPayAddr,
+			data: executeCalldata,
+			value: 0n,
+			gas: 2_000_000n,
+			maxFeePerGas,
+			maxPriorityFeePerGas
+		})
+		console.log('----------------------------------------------------')
+		console.log(`📨 Raw tx enviada: ${txHash}`)
+		console.log('🧪 Si revierte, tendrás el hash para inspección.')
+		return txHash
+	}
 
-		// calldata completa para execute (la usaremos tanto en write como en raw)
-		const executeCalldata = encodeFunctionData({
+	try {
+		console.log('🚀 Simulando SwapPay.execute…')
+		await publicClient.simulateContract({
+			address: swapPayAddr,
 			abi: swapPay.abi,
 			functionName: 'execute',
-			args: [
-				inTokens,
-				inAmounts,
-				pixelAddr,
-				buyCalldata as Hex,
-				amountPayment,
-				pyusdAddr,
-				minOutPaymentToken
-			]
+			args: executeArgs,
+			account: deployer
 		})
 
-		// helper para enviar raw tx (útil si fuerza o si sim falla)
-		const sendRaw = async (tag: string) => {
-			// fees conservadoras
-			const fee = await publicClient.getFeeHistory({
-				blockCount: 1,
-				rewardPercentiles: [25]
-			})
-			const base = fee.baseFeePerGas?.[0] ?? parseUnits('1', 9) // 1 gwei fallback
-			const tip = fee.reward?.[0]?.[0] ?? parseUnits('1', 9) // 1 gwei fallback
-			const maxFeePerGas = base + tip
-			const maxPriorityFeePerGas = tip
+		console.log('🟢 Simulación OK. Enviando transacción…')
+		const hash = await walletClient.writeContract({
+			address: swapPayAddr,
+			abi: swapPay.abi,
+			functionName: 'execute',
+			args: executeArgs,
+			account: deployer
+		})
 
-			console.log(`⚡ Enviando RAW TX (${tag}) sin simulación...`)
-			const txHash = await walletClient.sendTransaction({
-				account: deployer,
-				to: swapPayAddr,
-				data: executeCalldata,
-				value: 0n,
-				gas: 2_000_000n, // gas fijo para no depender de estimación
-				maxFeePerGas,
-				maxPriorityFeePerGas
-			})
-			console.log('----------------------------------------------------')
-			console.log(`📨 Raw tx enviada: ${txHash}`)
-			console.log(
-				'🧪 Si revierte, igual tendrás el hash para inspeccionar en Tenderly.'
-			)
-			return txHash
-		}
-
+		await publicClient.waitForTransactionReceipt({ hash })
 		console.log('----------------------------------------------------')
-		if (force) {
-			// Modo forzado: no simulamos, mandamos directo
-			await sendRaw('force')
-			return
-		}
-
-		// Modo normal: intentar simular y usar writeContract; si falla, fallback a RAW TX
-		try {
-			console.log('🚀 Simulando SwapPay.execute...')
-			await publicClient.simulateContract({
-				address: swapPayAddr,
-				abi: swapPay.abi,
-				functionName: 'execute',
-				args: [
-					inTokens,
-					inAmounts,
-					pixelAddr,
-					buyCalldata as Hex,
-					amountPayment,
-					pyusdAddr,
-					minOutPaymentToken
-				],
-				account: deployer
-			})
-
-			console.log('🟢 Simulación OK. Enviando transacción (writeContract)...')
-			const hash = await walletClient.writeContract({
-				address: swapPayAddr,
-				abi: swapPay.abi,
-				functionName: 'execute',
-				args: [
-					inTokens,
-					inAmounts,
-					pixelAddr,
-					buyCalldata as Hex,
-					amountPayment,
-					pyusdAddr,
-					minOutPaymentToken
-				],
-				account: deployer
-			})
-
-			await publicClient.waitForTransactionReceipt({ hash })
-			console.log('----------------------------------------------------')
-			console.log(`✅ SwapPay.execute completado. Tx: ${hash}`)
-		} catch (err) {
-			console.warn(
-				'⚠️ Simulación/llamada falló. Enviando RAW TX para obtener hash de todas formas...'
-			)
-			await sendRaw('fallback')
-		}
-	})
+		console.log(`✅ SwapPay.execute completado. Tx: ${hash}`)
+	} catch (err) {
+		console.warn(
+			'⚠️ Simulación/llamada falló. Enviando RAW TX para obtener hash...'
+		)
+		await sendRaw('fallback')
+	}
+})
